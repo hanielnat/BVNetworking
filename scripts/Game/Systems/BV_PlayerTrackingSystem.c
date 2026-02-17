@@ -51,16 +51,6 @@ class BV_PlayerTrackingSystem : WorldSystem
 			g_BVPrinter.Error("BV_AnalyticsSystem not present in world");
 			return;
 		}
-
-		EventProvider.ConnectEvent(m_eventSystem.OnPlayerConnected, this.HandleOnPlayerConnected);
-		EventProvider.ConnectEvent(m_eventSystem.OnPlayerDisconnected, this.HandleOnPlayerDisconnected);
-	}
-
-	//------------------------------------------------------------------------------------------------
-	override event protected void OnCleanup()
-	{
-		if (m_eventSystem)
-			EventProvider.DisconnectEvents(m_eventSystem, this);
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -103,7 +93,7 @@ class BV_PlayerTrackingSystem : WorldSystem
 
 	//------------------------------------------------------------------------------------------------
 	[ReceiverAttribute()]
-	void HandleOnPlayerConnected(int playerId, string playerUID)
+	void HandleOnPlayerConnected(int playerId, UUID playerUID)
 	{
 		g_BVPrinter.Trace(string.Format("BV_PlayerTrackingSystem::HandleOnPlayerConnected(playerId: %1, playerUID: %2)", playerId, playerUID));
 		RegisterPlayer(playerId);
@@ -118,7 +108,7 @@ class BV_PlayerTrackingSystem : WorldSystem
 
 	//------------------------------------------------------------------------------------------------
 	[ReceiverAttribute()]
-	void HandleOnPlayerDisconnected(int playerId, string playerUID)
+	void HandleOnPlayerDisconnected(int playerId, UUID playerUID)
 	{
 		g_BVPrinter.Trace(string.Format("BV_PlayerTrackingSystem::HandleOnPlayerDisconnected(playerId: %1, playerUID: %2)", playerId, playerUID));
 		UnregisterPlayer(playerId);

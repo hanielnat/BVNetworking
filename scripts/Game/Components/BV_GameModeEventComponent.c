@@ -19,6 +19,20 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 			g_BVPrinter.Error("BV_GameModeEventComponent::OnPostInit  BV_PlayerEventSystem not present in World, exiting...");
 			return;
 		}
+
+		BV_PlayerTrackingSystem playerTrackingSystem = BV_PlayerTrackingSystem.GetInstance();
+		if (playerTrackingSystem)
+		{
+			EventProvider.ConnectEvent(m_playerEventSystem.OnPlayerConnected, playerTrackingSystem.HandleOnPlayerConnected);
+			EventProvider.ConnectEvent(m_playerEventSystem.OnPlayerDisconnected, playerTrackingSystem.HandleOnPlayerDisconnected);
+		}
+	}
+
+	//------------------------------------------------------------------------------------------------
+	override void OnDelete(IEntity owner)
+	{
+		if (m_playerEventSystem)
+			EventProvider.DisconnectEvents(m_playerEventSystem, this);
 	}
 
 	//------------------------------------------------------------------------------------------------
