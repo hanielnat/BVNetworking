@@ -34,8 +34,8 @@ class BV_PlayerDataSerializer : ScriptedStateSerializer
 			return ESerializeResult.ERROR;
 
 		context.WriteValue("version", 1);
-		context.WriteValue("playerID", pData.m_playerId);
-		context.WriteValue("playerUID", pData.m_playerIdentityId);
+		context.WriteValue("m_playerId", pData.m_playerId);
+		context.WriteValue("m_playerIdentityId", pData.m_playerIdentityId);
 
 		return ESerializeResult.OK;
 	}
