@@ -1,1 +1,4 @@
-{}
+{
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": false
+}
