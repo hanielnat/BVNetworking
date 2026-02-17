@@ -27,18 +27,18 @@ class BV_TestCommand : ScrServerCommand
 	//------------------------------------------------------------------------------------------------
 	override event protected ref ScrServerCmdResult OnChatServerExecution(array<string> argv, int playerId)
 	{
-		BV_PlayerTrackingSystem pTrackSystem = BV_PlayerTrackingSystem.GetInstance();
-		if (!pTrackSystem)
-			return ScrServerCmdResult("Error getting BV_PlayerTrackingSystem", EServerCmdResultType.ERR);
+		BV_GameModeEventComponent comp = BV_GameModeEventComponent.GetInstance();
+		if (!comp)
+			return ScrServerCmdResult("Error getting BV_GameModeEventComponent", EServerCmdResultType.ERR);
 
-		array<ref BV_PlayerData> pData = pTrackSystem.GetReplicatedPlayerData();
+		array<ref BV_PlayerData> pData = comp.GetReplicatedPlayerData();
 		if (pData.Count() == 1)
 			return ScrServerCmdResult("No players present", EServerCmdResultType.OK);
 
 		string playerIds = string.Empty;
 		for (int i = 1; i < pData.Count(); ++i)
 		{
-			playerIds += string.Format("[%1, %2]\n", pData[i].m_playerId, pData[i].m_playerIdentityId);
+			playerIds += string.Format("[%1, %2], ", pData[i].m_playerId, pData[i].m_playerIdentityId);
 		}
 
 		return ScrServerCmdResult(playerIds, EServerCmdResultType.OK);
