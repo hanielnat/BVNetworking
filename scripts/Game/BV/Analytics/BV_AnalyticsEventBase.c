@@ -18,11 +18,4 @@ class BV_AnalyticsEventBase : JsonApiStruct
 	{
 		return string.Format("%1(sEventType='%2', iTimestamp=%3)", this.ClassName(), sEventType, iTimestamp);
 	}
-
-	//------------------------------------------------------------------------------------------------
-	string ToJsonString()
-	{
-		Pack();
-		return AsString();
-	}
 }

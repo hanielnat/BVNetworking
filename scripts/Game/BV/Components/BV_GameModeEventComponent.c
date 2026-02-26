@@ -32,6 +32,14 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	/*
+	override void EOnInit(IEntity owner)
+	{
+		SetEventMask(this, EntityEvent.POSTFRAME);
+	}
+	*/
+
+	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
 	{
 		if (SCR_Global.IsEditMode())
@@ -62,6 +70,36 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 			g_BVPrinter.Error("BV_GameModeEventComponent::OnPostInit  BV_AnalyticsSystem not present in World, exiting...");
 			return;
 		}
+
+		// RestApi should exist here so create a RestApiManager
+		BV_RestApiManager restManager = BV_RestApiManager.GetInstance();
+		if (!restManager)
+		{
+			g_BVPrinter.Error("BV_GameModeEventComponent::OnPostInit  BV_RestApiManager not present, exiting...");
+			return;
+		}
+
+		m_analyticsSystem.SetRestManager(restManager);
+
+		g_BVPrinter.DebugWB("creating 99 ping events");
+		for (int i = 0; i < 99; ++i)
+		{
+			BV_PingAnalyticsEvent.Fire();
+		}
+		g_BVPrinter.DebugWB("ping events creation done");
+
+		GetGame().GetCallqueue().CallLater(TestFireEvents, 4000, true);
+	}
+
+	//------------------------------------------------------------------------------------------------
+	private void TestFireEvents()
+	{
+		g_BVPrinter.DebugWB("creating 10 ping events");
+		for (int i = 0; i < 10; ++i)
+		{
+			BV_PingAnalyticsEvent.Fire();
+		}
+		g_BVPrinter.DebugWB("ping events creation done");
 	}
 
 	//------------------------------------------------------------------------------------------------

@@ -17,7 +17,7 @@ class BV_ReplicatedAnalyticsMessage : Managed
 	}
 
 	//------------------------------------------------------------------------------------------------
-	string AsString()
+	string Repr()
 	{
 		return string.Format("%1(iTimestamp=%2, iCategory=%3)", this.ClassName(), iTimestamp, iCategory);
 	}

@@ -40,7 +40,6 @@ class BV_PlayerNetworkComponent : ScriptComponent
 	[ReceiverAttribute()]
 	protected void OnReplicatedMessage(BV_ReplicatedAnalyticsMessage msg)
 	{
-		g_BVPrinter.DebugWB(string.Format("BV_PlayerNetworkComponent::OnReplicatedMessage(msg: %1)", msg.ToString()));
-		g_BVPrinter.DebugWB(string.Format("BV_PlayerNetworkComponent::OnReplicatedMessage(msg: %1)", msg.AsString()));
+		g_BVPrinter.DebugWB(string.Format("BV_PlayerNetworkComponent::OnReplicatedMessage(msg: %1)", msg.Repr()));
 	}
 }
