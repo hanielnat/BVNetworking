@@ -1,5 +1,5 @@
 MetaFileClass {
- Name "{5BA7C4643477E2D7}Configs/Systems/Persistence/EditableMission.conf"
+ Name "{B4BAADA464BB6ADB}Configs/Systems/Persistence/Group/ScriptedStates/Common.conf"
  Configurations {
   CONFResourceClass PC {
   }
