@@ -31,14 +31,14 @@ class BV_TestCommand : ScrServerCommand
 		if (!comp)
 			return ScrServerCmdResult("Error getting BV_GameModeEventComponent", EServerCmdResultType.ERR);
 
-		array<ref BV_PlayerData> pData = comp.GetReplicatedPlayerData();
+		array<ref BV_PlayerDataEntity> pData = comp.GetReplicatedPlayerData();
 		if (pData.Count() == 1)
 			return ScrServerCmdResult("No players present", EServerCmdResultType.OK);
 
 		string playerIds = string.Empty;
 		for (int i = 1; i < pData.Count(); ++i)
 		{
-			playerIds += string.Format("[%1, %2], ", pData[i].m_playerId, pData[i].m_playerIdentityId);
+			playerIds += string.Format("[%1, %2], ", pData[i].id.playerID, pData[i].id.playerUID);
 		}
 
 		return ScrServerCmdResult(playerIds, EServerCmdResultType.OK);

@@ -1,134 +1,99 @@
-class BV_PlayerDataPersistentState : PersistentState
+class BV_PlayerIdData : Managed
 {
+	static const int SIZE = 20;
+	int playerID;
+	UUID playerUID;
 }
 
-class BV_PlayerDataSerializer : ScriptedStateSerializer
+class BV_PlayerRoleData : Managed
 {
-	//------------------------------------------------------------------------------------------------
-	override static typename GetTargetType()
-	{
-		return BV_PlayerDataPersistentState;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	override static event EDeserializeFailHandling GetDeserializeFailHandling()
-	{
-		return EDeserializeFailHandling.ERROR;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	override static event EScriptedStateDeserializeEvent GetDeserializeEvent()
-	{
-		return EScriptedStateDeserializeEvent.AFTER_CONSTRUCTOR;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	override ESerializeResult Serialize(notnull Managed instance, notnull BaseSerializationSaveContext context)
-	{
-		if (!Replication.IsRunning())
-			return ESerializeResult.DEFAULT;
-
-		// BV_PlayerDataPersistentState pData = BV_PlayerDataPersistentState.Cast(instance);
-		BV_PlayerData pData = BV_PlayerData.Cast(instance);
-		if (!pData)
-			return ESerializeResult.ERROR;
-
-		context.WriteValue("version", 1);
-		context.WriteValue("m_playerId", pData.m_playerId);
-		context.WriteValue("m_playerIdentityId", pData.m_playerIdentityId);
-
-		return ESerializeResult.OK;
-	}
-
-	//------------------------------------------------------------------------------------------------
-	override bool Deserialize(notnull Managed instance, notnull BaseSerializationLoadContext context)
-	{
-		// BV_PlayerDataPersistentState pData = BV_PlayerDataPersistentState.Cast(instance);
-		BV_PlayerData pData = BV_PlayerData.Cast(instance);
-		if (!pData)
-			return ESerializeResult.ERROR;
-
-		int version;
-		context.Read(version);
-
-		int playerId;
-		context.Read(playerId);
-
-		UUID playerUID;
-		context.Read(playerUID);
-
-		pData.m_playerId = playerId;
-		pData.m_playerIdentityId = playerUID;
-
-		return ESerializeResult.OK;
-	}
+	static const int SIZE = 4;
+	int playerRoleMask;
 }
 
-class BV_PlayerData : Managed
+class BV_PlayerStatusData : Managed
 {
-	// int(4) + UUID(16)
-	protected const int SIZE = 20;
+	static const int SIZE = 4;
+	int kills;
+}
 
-	int m_playerId = 0;
-	UUID m_playerIdentityId = UUID.NULL_UUID;
+[EDF_DbName("PlayerData")]
+class BV_PlayerDataEntity : EDF_DbEntity
+{
+	protected static int SIZE;
+	ref BV_PlayerIdData id;
+	ref BV_PlayerRoleData role;
+	ref BV_PlayerStatusData status;
 
 	//------------------------------------------------------------------------------------------------
-	static BV_PlayerData Create(int playerId = 0, UUID playerUID = UUID.NULL_UUID)
+	static BV_PlayerDataEntity Create(
+		BV_PlayerIdData pID = null,
+		BV_PlayerRoleData pRole = null,
+		BV_PlayerStatusData pStatus = null)
 	{
-		BV_PlayerData pData = BV_PlayerData();
-		pData.m_playerId = playerId;
-		pData.m_playerIdentityId = playerUID;
+		BV_PlayerDataEntity instance = BV_PlayerDataEntity();
 
-		return pData;
+		// player id data should not be null when giving it to the entity, but allow
+		// passing null for easier usage
+		if (pID == null)
+		{
+			// TODO: fix pID is null even after new()
+			pID = new BV_PlayerIdData();
+			pID.playerID = -1;
+			pID.playerUID = UUID.NULL_UUID;
+		}
+
+		instance.id = pID;
+		instance.role = pRole;
+		instance.status = pStatus;
+
+		instance.SIZE = pID.SIZE + pRole.SIZE + pStatus.SIZE;
+		return instance;
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Server: instance → snapshot (raw bytes)
-	static bool Extract(BV_PlayerData instance, ScriptCtx ctx, SSnapSerializerBase snapshot)
+	static bool Extract(BV_PlayerDataEntity instance, ScriptCtx ctx, SSnapSerializerBase snapshot)
 	{
-		snapshot.SerializeBytes(instance.m_playerId, 4);
-		snapshot.SerializeBytes(instance.m_playerIdentityId, 16); // UUID = 16-byte binary
+		snapshot.SerializeBytes(instance.id, instance.id.SIZE);
+		snapshot.SerializeBytes(instance.role, instance.role.SIZE);
+		snapshot.SerializeBytes(instance.status, instance.status.SIZE);
 		return true;
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Client: snapshot → instance
-	static bool Inject(SSnapSerializerBase snapshot, ScriptCtx ctx, BV_PlayerData instance)
+	static bool Inject(SSnapSerializerBase snapshot, ScriptCtx ctx, BV_PlayerDataEntity instance)
 	{
-		snapshot.SerializeBytes(instance.m_playerId, 4);
-		snapshot.SerializeBytes(instance.m_playerIdentityId, 16);
+		snapshot.SerializeBytes(instance.id, instance.id.SIZE);
+		snapshot.SerializeBytes(instance.role, instance.role.SIZE);
+		snapshot.SerializeBytes(instance.status, instance.status.SIZE);
 		return true;
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Server: compare two snapshots (binary equality over fixed size)
 	static bool SnapCompare(SSnapSerializerBase lhs, SSnapSerializerBase rhs, ScriptCtx ctx)
 	{
-		return !lhs.CompareSnapshots(rhs, this.SIZE); // 4 + 16 = 20 bytes; ! to match "different = true" convention
+		return !lhs.CompareSnapshots(rhs, this.SIZE);
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Server: instance vs snapshot (check if fields differ)
-	static bool PropCompare(BV_PlayerData instance, SSnapSerializerBase snapshot, ScriptCtx ctx)
+	static bool PropCompare(BV_PlayerDataEntity instance, SSnapSerializerBase snapshot, ScriptCtx ctx)
 	{
-		// Compare each field individually against snapshot content
 		bool changed = false;
 
-		changed = changed || !snapshot.Compare(instance.m_playerId, 4);
-		changed = changed || !snapshot.Compare(instance.m_playerIdentityId, 16);
+		changed = changed || !snapshot.Compare(instance.id, instance.id.SIZE);
+		changed = changed || !snapshot.Compare(instance.role, instance.role.SIZE);
+		changed = changed || !snapshot.Compare(instance.status, instance.status.SIZE);
 
 		return changed; // true = needs update
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Server: snapshot → network packet (full copy, fixed size)
 	static void Encode(SSnapSerializerBase snapshot, ScriptCtx ctx, ScriptBitSerializer packet)
 	{
-		snapshot.Serialize(packet, this.SIZE); // exact size of our data
+		snapshot.Serialize(packet, this.SIZE);
 	}
 
 	//------------------------------------------------------------------------------------------------
-	// Client: network packet → snapshot
 	static bool Decode(ScriptBitSerializer packet, ScriptCtx ctx, SSnapSerializerBase snapshot)
 	{
 		snapshot.Serialize(packet, this.SIZE);

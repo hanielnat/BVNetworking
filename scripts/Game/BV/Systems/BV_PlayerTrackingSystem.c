@@ -27,21 +27,6 @@ class BV_PlayerTrackingSystem : WorldSystem
 	//------------------------------------------------------------------------------------------------
 	override event protected void OnInit()
 	{
-		/*
-		m_eventSystem = BV_PlayerEventSystem.GetInstance();
-		if (!m_eventSystem)
-		{
-			g_BVPrinter.Error("BV_PlayerEventSystem not present in world");
-			return;
-		}
-
-		m_analyticsSystem = BV_AnalyticsSystem.GetInstance();
-		if (!m_analyticsSystem)
-		{
-			g_BVPrinter.Error("BV_AnalyticsSystem not present in world");
-			return;
-		}
-		*/
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -54,7 +39,5 @@ class BV_PlayerTrackingSystem : WorldSystem
 			return;
 
 		m_fTimer = 0.0;
-
-		g_BVPrinter.TraceWB(string.Format("BV_PlayerTrackingSystem::OnUpdatePoint  deltaSeconds=%1", deltaSeconds));
 	}
 }

@@ -6,15 +6,18 @@ class BV_GameModeEventComponentClass : SCR_BaseGameModeComponentClass
 class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 {
 	protected static BV_GameModeEventComponent s_instance;
+	protected static ref BV_FmtPrinter s_printer = new BV_FmtPrinter("BVGameModeEvents");
 
 	protected BV_PlayerTrackingSystem m_playerTrackingSystem;
 	protected BV_PlayerEventSystem m_playerEventSystem;
 	protected BV_AnalyticsSystem m_analyticsSystem;
+	protected BV_PlayerDataPersistenceManager m_dataManager;
+	protected PersistenceSystem m_persistenceSystem;
 
-	protected ref map<int, ref BV_PlayerData> m_mPlayerData = new map<int, ref BV_PlayerData>();
+	protected ref map<int, ref BV_PlayerDataEntity> m_mPlayerData = new map<int, ref BV_PlayerDataEntity>();
 
 	[RplProp()]
-	protected ref array<ref BV_PlayerData> m_aReplicatedPlayers = {};
+	protected ref array<ref BV_PlayerDataEntity> m_aReplicatedPlayers = {};
 
 	//------------------------------------------------------------------------------------------------
 	static BV_GameModeEventComponent GetInstance()
@@ -26,18 +29,10 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
-	array<ref BV_PlayerData> GetReplicatedPlayerData()
+	array<ref BV_PlayerDataEntity> GetReplicatedPlayerData()
 	{
 		return m_aReplicatedPlayers;
 	}
-
-	//------------------------------------------------------------------------------------------------
-	/*
-	override void EOnInit(IEntity owner)
-	{
-		SetEventMask(this, EntityEvent.POSTFRAME);
-	}
-	*/
 
 	//------------------------------------------------------------------------------------------------
 	override void OnPostInit(IEntity owner)
@@ -48,59 +43,72 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 		s_instance = this;
 
 		m_aReplicatedPlayers.Reserve(256);
-		m_aReplicatedPlayers.Insert(BV_PlayerData.Create()); // for playerID 0
+		m_aReplicatedPlayers.Insert(BV_PlayerDataEntity.Create()); // for playerID 0
 
 		m_playerEventSystem = BV_PlayerEventSystem.GetInstance();
 		if (!m_playerEventSystem)
 		{
-			g_BVPrinter.Error("BV_GameModeEventComponent::OnPostInit  BV_PlayerEventSystem not present in World, exiting...");
+			s_printer.Error("OnPostInit  BV_PlayerEventSystem not present in World, exiting...");
 			return;
-		}
-
-		m_playerTrackingSystem = BV_PlayerTrackingSystem.GetInstance();
-		if (m_playerTrackingSystem)
-		{
-			EventProvider.ConnectEvent(m_playerEventSystem.OnPlayerConnected, this.HandleOnPlayerConnected);
-			EventProvider.ConnectEvent(m_playerEventSystem.OnPlayerDisconnected, this.HandleOnPlayerDisconnected);
 		}
 
 		m_analyticsSystem = BV_AnalyticsSystem.GetInstance();
 		if (!m_analyticsSystem)
 		{
-			g_BVPrinter.Error("BV_GameModeEventComponent::OnPostInit  BV_AnalyticsSystem not present in World, exiting...");
+			s_printer.Error("OnPostInit  BV_AnalyticsSystem not present in World, exiting...");
 			return;
 		}
 
-		// RestApi should exist here so create a RestApiManager
+		m_playerTrackingSystem = BV_PlayerTrackingSystem.GetInstance();
+		if (!m_playerTrackingSystem)
+		{
+			s_printer.Error("OnPostInit  BV_PlayerTrackingSystem not present in World, exiting...");
+			return;
+		}
+
+		m_persistenceSystem = PersistenceSystem.GetInstance();
+		if (!m_persistenceSystem)
+		{
+			s_printer.Error("OnPostInit  PersistenceSystem not present in World, exiting...");
+			return;
+		}
+
+		m_dataManager = BV_PlayerDataPersistenceManager.GetInstance();
+		if (!m_dataManager)
+		{
+			s_printer.Error("OnPostInit  BV_PlayerDataPersistenceManager not present, exiting...");
+			return;
+		}
+
 		BV_RestApiManager restManager = BV_RestApiManager.GetInstance();
 		if (!restManager)
 		{
-			g_BVPrinter.Error("BV_GameModeEventComponent::OnPostInit  BV_RestApiManager not present, exiting...");
+			s_printer.Error("OnPostInit  BV_RestApiManager not present, exiting...");
 			return;
 		}
 
 		m_analyticsSystem.SetRestManager(restManager);
 
-		g_BVPrinter.DebugWB("creating 99 ping events");
-		for (int i = 0; i < 99; ++i)
-		{
-			BV_PingAnalyticsEvent.Fire();
-		}
-		g_BVPrinter.DebugWB("ping events creation done");
+		EventProvider.ConnectEvent(m_playerEventSystem.OnPlayerConnected, this.HandleOnPlayerConnected);
+		EventProvider.ConnectEvent(m_playerEventSystem.OnPlayerDisconnected, this.HandleOnPlayerDisconnected);
 
+		#ifdef WORKBENCH
 		GetGame().GetCallqueue().CallLater(TestFireEvents, 4000, true);
+		#endif
 	}
 
 	//------------------------------------------------------------------------------------------------
+	#ifdef WORKBENCH
 	private void TestFireEvents()
 	{
-		g_BVPrinter.DebugWB("creating 10 ping events");
+		s_printer.DebugWB("creating 10 ping events");
 		for (int i = 0; i < 10; ++i)
 		{
 			BV_PingAnalyticsEvent.Fire();
 		}
-		g_BVPrinter.DebugWB("ping events creation done");
+		s_printer.DebugWB("ping events creation done");
 	}
+	#endif
 
 	//------------------------------------------------------------------------------------------------
 	override void OnDelete(IEntity owner)
@@ -117,8 +125,6 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 
 		if (m_playerEventSystem)
 			m_playerEventSystem.OnPlayerConnected(playerId, SCR_PlayerIdentityUtils.GetPlayerIdentityId(playerId));
-
-		g_BVPrinter.Trace("BV_GameModeEventComponent::OnPlayerAuditSuccess  captured event");
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -129,14 +135,12 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 
 		if (m_playerEventSystem)
 			m_playerEventSystem.OnPlayerDisconnected(playerId, SCR_PlayerIdentityUtils.GetPlayerIdentityId(playerId));
-
-		g_BVPrinter.Trace("BV_GameModeEventComponent::OnPlayerDisconnected  captured event");
 	}
 
 	//------------------------------------------------------------------------------------------------
 	void OnPlayerDataRegistered(int playerId)
 	{
-		BV_PlayerData pData = m_mPlayerData.Get(playerId);
+		BV_PlayerDataEntity pData = m_mPlayerData.Get(playerId);
 		m_aReplicatedPlayers.Insert(pData);
 		Replication.BumpMe();
 	}
@@ -152,46 +156,67 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 	}
 
 	//------------------------------------------------------------------------------------------------
+	private BV_PlayerDataEntity CreateDataForPlayer(int playerId)
+	{
+		BV_PlayerIdData idData = BV_PlayerIdData();
+		BV_PlayerRoleData roleData = BV_PlayerRoleData();
+		BV_PlayerStatusData statusData = BV_PlayerStatusData();
+
+		UUID playerUID = SCR_PlayerIdentityUtils.GetPlayerIdentityId(playerId);
+
+		idData.playerID = playerId;
+		idData.playerUID = playerUID;
+
+		roleData.playerRoleMask = 0;
+
+		statusData.kills = 0;
+
+		return BV_PlayerDataEntity.Create(idData, roleData, statusData);
+	}
+
+	//------------------------------------------------------------------------------------------------
 	void RegisterPlayer(int playerId)
 	{
-		BV_PlayerData pData = BV_PlayerData.Create(
-			playerId,
-			SCR_PlayerIdentityUtils.GetPlayerIdentityId(playerId)
-		);
+		BV_PlayerDataEntity pData = CreateDataForPlayer(playerId);
+
+		if (!m_dataManager.LoadEntity(playerUID, pData))
+		{
+			s_printer.DebugWB("RegisterPlayer  creating entity for first join player " + playerUID);
+
+			if (!m_dataManager.SaveEntity(pData))
+			{
+				s_printer.Error("RegisterPlayer  error creating entity for first join player " + playerUID);
+				return;
+			}
+		}
 
 		m_mPlayerData.Set(playerId, pData);
 
-		PersistenceSystem pSystem = PersistenceSystem.GetInstance();
-		if (!pSystem)
-		{
-			g_BVPrinter.ErrorWB("BV_PlayerTrackingSystem::RegisterPlayer  PersistenceSystem is not present in world");
-			return;
-		}
-
-		pSystem.StartTracking(pData);
+		// TODO: test
+		m_persistenceSystem.SetId(pData, playerUID);
+		m_persistenceSystem.StartTracking(pData);
+		m_persistenceSystem.Save(pData);
 	}
 
 	//------------------------------------------------------------------------------------------------
 	void UnregisterPlayer(int playerId)
 	{
-		BV_PlayerData pData = BV_PlayerData.Create();
+		BV_PlayerDataEntity pData = BV_PlayerDataEntity.Create();
 		m_mPlayerData.Take(playerId, pData);
+		m_persistenceSystem.ReleaseTracking(pData);
 
-		PersistenceSystem pSystem = PersistenceSystem.GetInstance();
-		if (!pSystem)
+		if (!m_dataManager.SaveEntity(pData))
 		{
-			g_BVPrinter.ErrorWB("BV_PlayerTrackingSystem::UnregisterPlayer  PersistenceSystem is not present in world");
+			s_printer.Error("UnregisterPlayer  error saving player data entity");
 			return;
 		}
-
-		pSystem.ReleaseTracking(pData);
 	}
 
 	//------------------------------------------------------------------------------------------------
 	[ReceiverAttribute()]
 	void HandleOnPlayerConnected(int playerId, UUID playerUID)
 	{
-		g_BVPrinter.Trace(string.Format("BV_GameModeEventComponent::HandleOnPlayerConnected(playerId: %1, playerUID: %2)", playerId, playerUID));
+		s_printer.Trace(string.Format("HandleOnPlayerConnected(playerId: %1, playerUID: %2)", playerId, playerUID));
 		RegisterPlayer(playerId);
 		OnPlayerDataRegistered(playerId);
 
@@ -206,7 +231,7 @@ class BV_GameModeEventComponent : SCR_BaseGameModeComponent
 	[ReceiverAttribute()]
 	void HandleOnPlayerDisconnected(int playerId, UUID playerUID)
 	{
-		g_BVPrinter.Trace(string.Format("BV_GameModeEventComponent::HandleOnPlayerDisconnected(playerId: %1, playerUID: %2)", playerId, playerUID));
+		s_printer.Trace(string.Format("HandleOnPlayerDisconnected(playerId: %1, playerUID: %2)", playerId, playerUID));
 		UnregisterPlayer(playerId);
 		OnPlayerDataUnRegistered(playerId);
 

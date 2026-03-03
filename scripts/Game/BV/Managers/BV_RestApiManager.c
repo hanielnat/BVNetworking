@@ -186,10 +186,12 @@ class BV_RestApiManager : Managed
 	}
 
 	//------------------------------------------------------------------------------------------------
-	void SendPlayerData(UUID playerUID, BV_PlayerData pData)
+	void SendPlayerData(UUID playerUID, BV_PlayerDataEntity pData)
 	{
 		string params = string.Format("%1/player/%2", API_V1_STR, playerUID);
+
 		SCR_JsonSaveContext ctx = new SCR_JsonSaveContext();
+		ctx.WriteValue("", pData);
 		string payload = ctx.ExportToString();
 
 		m_context.POST(m_callback, params, payload);
