@@ -158,11 +158,15 @@ class BV_AnalyticsSystem : WorldSystem
 		if (m_restManager.IsAvailable()) // send to rest api primarily
 		{
 			if (m_bSendEventsBatched)
-				m_restManager.SendAnalyticsBatch(batch);
-
-			foreach (BV_AnalyticsEventBase e : batch)
 			{
-				m_restManager.SendAnalytics(e);
+				m_restManager.SendAnalyticsBatch(batch);
+			}
+			else
+			{
+				foreach (BV_AnalyticsEventBase e : batch)
+				{
+					m_restManager.SendAnalytics(e);
+				}
 			}
 		}
 		else // write to file as fallback
@@ -179,9 +183,9 @@ class BV_AnalyticsSystem : WorldSystem
 
 		int succesfullEvents = batch.Count() - droppedEvents;
 		m_iEventsThisMinute += succesfullEvents;
-		m_iTotalEventCount += succesfullEvents;
+		m_iTotalEventCount += batch.Count();
 
-		s_printer.Trace(string.Format("flushed %1 analytics events, failed to flush %2", succesfullEvents, droppedEvents));
+		s_printer.Trace(string.Format("flushed %1 analytics events, failed to flush %2, total count %3", succesfullEvents, droppedEvents, m_iTotalEventCount));
 	}
 
 	//------------------------------------------------------------------------------------------------
@@ -218,9 +222,9 @@ class BV_AnalyticsSystem : WorldSystem
 			ev.Pack();
 
 		string evJson = ev.AsString();
-		if (evJson == "{}") // FIXME: it seems that after 64 'JsonApiStruct's instantiated, 'AsString()' returns '{}'
+		if (evJson == "{}")
 		{
-			s_printer.Error("can't serialize event, unknown error");
+			s_printer.Error("can't serialize event, JsonApiStruct 64 buffer cap reached");
 			return false;
 		}
 
@@ -242,6 +246,7 @@ class BV_AnalyticsSystem : WorldSystem
 	//------------------------------------------------------------------------------------------------
 	protected void QueueEvent(notnull BV_AnalyticsEventBase evt)
 	{
+		// TODO: maybe fix off by one
 		if (m_aEventQueue.Count() >= m_iMaxQueueSize)
 		{
 			s_printer.Info("Analytics queue full, dropping event: " + evt.sEventType);
