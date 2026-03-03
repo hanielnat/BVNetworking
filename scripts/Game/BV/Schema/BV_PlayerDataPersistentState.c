@@ -4,8 +4,6 @@ class BV_PlayerDataPersistentState : PersistentState
 
 class BV_PlayerDataSerializer : ScriptedStateSerializer
 {
-	private static const int s_iStatusFieldsCount = 1;
-
 	//------------------------------------------------------------------------------------------------
 	override static typename GetTargetType()
 	{
@@ -35,14 +33,9 @@ class BV_PlayerDataSerializer : ScriptedStateSerializer
 			return ESerializeResult.ERROR;
 
 		context.WriteValue("version", 1);
-		context.WriteValue("playerID", pData.id.playerID);
-		context.WriteValue("playerUID", pData.id.playerUID);
-
-		context.WriteValue("rolesMask", pData.role.playerRoleMask);
-
-		context.StartArray("status", s_iStatusFieldsCount);
-		context.WriteValue("kills", pData.status.kills);
-		context.EndArray();
+		context.WriteValue("playerID", pData.id);
+		context.WriteValue("roles", pData.role);
+		context.WriteValue("status", pData.status);
 
 		return ESerializeResult.OK;
 	}
@@ -57,24 +50,18 @@ class BV_PlayerDataSerializer : ScriptedStateSerializer
 		int version;
 		context.Read(version);
 
-		int playerId;
-		context.Read(playerId);
+		BV_PlayerIdData idData;
+		context.Read(idData);
 
-		UUID playerUID;
-		context.Read(playerUID);
+		BV_PlayerRoleData roleData;
+		context.Read(roleData);
 
-		int roleMask;
-		context.Read(roleMask);
+		BV_PlayerStatusData statusData;
+		context.Read(statusData);
 
-		int statusKills;
-		context.StartArray("status", s_iStatusFieldsCount);
-		context.Read(statusKills);
-		context.EndArray();
-
-		pData.id.playerID = playerId;
-		pData.id.playerUID = playerUID;
-		pData.role.playerRoleMask = roleMask;
-		pData.status.kills = statusKills;
+		pData.id = idData;
+		pData.role = roleData;
+		pData.status = statusData;
 
 		return ESerializeResult.OK;
 	}
